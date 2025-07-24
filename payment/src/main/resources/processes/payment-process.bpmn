@@ -1,0 +1,496 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  id="Definitions_PaymentProcess"
+  targetNamespace="http://gov.kr/payment/bpmn">
+
+  <bpmn:process id="PaymentProcess" name="정부 쿠폰 결제 프로세스" isExecutable="true">
+
+    <!-- 프로세스 시작 이벤트 -->
+    <bpmn:startEvent id="StartPayment" name="결제 요청 시작">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="paymentId" label="결제 ID" type="string" />
+          <camunda:formField id="userId" label="사용자 ID" type="string" />
+          <camunda:formField id="merchantId" label="가맹점 ID" type="string" />
+          <camunda:formField id="couponId" label="쿠폰 ID" type="string" />
+          <camunda:formField id="amount" label="결제 금액" type="long" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_StartToValidation</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- 쿠폰 유효성 검증 및 잔액 예약 -->
+    <bpmn:serviceTask id="ValidateCoupon" name="쿠폰 검증 및 잔액 예약"
+      camunda:delegateExpression="${couponValidationDelegate}">
+      <bpmn:documentation>
+        쿠폰의 유효성을 검증하고 결제 금액만큼 잔액을 예약합니다.
+        - 쿠폰 존재 여부 확인
+        - 쿠폰 만료일 확인
+        - 잔액 충분성 확인
+        - Redis 분산 락을 통한 원자적 잔액 예약
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="couponId">${couponId}</camunda:inputParameter>
+          <camunda:inputParameter name="amount">${amount}</camunda:inputParameter>
+          <camunda:outputParameter name="couponReserved">${couponReserved}</camunda:outputParameter>
+          <camunda:outputParameter name="validationError">${validationError}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_StartToValidation</bpmn:incoming>
+      <bpmn:outgoing>Flow_ValidationToGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 쿠폰 검증 결과 확인 게이트웨이 -->
+    <bpmn:exclusiveGateway id="ValidationGateway" name="쿠폰 검증 결과" default="Flow_ValidationError">
+      <bpmn:incoming>Flow_ValidationToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_ValidationSuccess</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ValidationError</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- PG 결제 처리 -->
+    <bpmn:serviceTask id="ProcessPayment" name="PG 결제 처리"
+      camunda:delegateExpression="${paymentProcessingDelegate}">
+      <bpmn:documentation>
+        외부 PG사를 통한 실제 결제 처리를 수행합니다.
+        - Mock PG 서비스 호출
+        - 결제 승인/거절 처리
+        - PG 거래번호 생성
+        - 결제 상태 업데이트
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="paymentId">${paymentId}</camunda:inputParameter>
+          <camunda:inputParameter name="amount">${amount}</camunda:inputParameter>
+          <camunda:outputParameter name="paymentSuccess">${paymentSuccess}</camunda:outputParameter>
+          <camunda:outputParameter name="pgTransactionId">${pgTransactionId}</camunda:outputParameter>
+          <camunda:outputParameter name="paymentError">${paymentError}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ValidationSuccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_PaymentToGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- PG 결제 결과 확인 게이트웨이 -->
+    <bpmn:exclusiveGateway id="PaymentGateway" name="PG 결제 결과" default="Flow_PaymentFailure">
+      <bpmn:incoming>Flow_PaymentToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_PaymentSuccess</bpmn:outgoing>
+      <bpmn:outgoing>Flow_PaymentFailure</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- 쿠폰 사용 확정 -->
+    <bpmn:serviceTask id="ConfirmCoupon" name="쿠폰 사용 확정"
+      camunda:delegateExpression="${couponConfirmDelegate}">
+      <bpmn:documentation>
+        결제가 성공적으로 완료된 후 쿠폰 사용을 최종 확정합니다.
+        - 예약된 쿠폰 잔액을 실제 사용으로 확정
+        - 쿠폰 사용 이력 기록
+        - 결제 완료 상태로 최종 업데이트
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="couponId">${couponId}</camunda:inputParameter>
+          <camunda:inputParameter name="amount">${amount}</camunda:inputParameter>
+          <camunda:outputParameter name="couponConfirmed">${couponConfirmed}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_PaymentSuccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_ConfirmToSuccess</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 결제 성공 후속 처리 -->
+    <bpmn:serviceTask id="ProcessPaymentSuccess" name="결제 성공 처리"
+      camunda:delegateExpression="${paymentSuccessDelegate}">
+      <bpmn:documentation>
+        결제 성공 시 후속 처리를 수행합니다.
+        - 결제 완료 이벤트 발행
+        - 사용자 및 가맹점 알림
+        - 정산 데이터 생성
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="paymentId">${paymentId}</camunda:inputParameter>
+          <camunda:inputParameter name="userId">${userId}</camunda:inputParameter>
+          <camunda:inputParameter name="merchantId">${merchantId}</camunda:inputParameter>
+          <camunda:inputParameter name="couponId">${couponId}</camunda:inputParameter>
+          <camunda:inputParameter name="amount">${amount}</camunda:inputParameter>
+          <camunda:inputParameter name="pgTransactionId">${pgTransactionId}</camunda:inputParameter>
+          <camunda:outputParameter name="successProcessed">${successProcessed}</camunda:outputParameter>
+          <camunda:outputParameter name="notificationSent">${notificationSent}</camunda:outputParameter>
+          <camunda:outputParameter name="eventPublished">${eventPublished}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ConfirmToSuccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_SuccessToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 쿠폰 잔액 롤백 처리 -->
+    <bpmn:serviceTask id="RollbackCoupon" name="쿠폰 잔액 롤백"
+      camunda:delegateExpression="${couponRollbackDelegate}">
+      <bpmn:documentation>
+        결제 실패 시 예약된 쿠폰 잔액을 복원합니다.
+        - 예약된 쿠폰 잔액을 원래 상태로 복원
+        - 실패 사유 기록
+        - 결제 실패 상태로 업데이트
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="couponId">${couponId}</camunda:inputParameter>
+          <camunda:inputParameter name="amount">${amount}</camunda:inputParameter>
+          <camunda:inputParameter name="couponReserved">${couponReserved}</camunda:inputParameter>
+          <camunda:outputParameter name="rollbackCompleted">${rollbackCompleted}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ValidationError</bpmn:incoming>
+      <bpmn:incoming>Flow_PaymentFailure</bpmn:incoming>
+      <bpmn:outgoing>Flow_RollbackToFailure</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 결제 실패 후속 처리 -->
+    <bpmn:serviceTask id="ProcessPaymentFailure" name="결제 실패 처리"
+      camunda:delegateExpression="${paymentFailureDelegate}">
+      <bpmn:documentation>
+        결제 실패 시 후속 처리를 수행합니다.
+        - 사용자 실패 알림
+        - 실패 통계 수집
+        - 재시도 가능 여부 판단
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="paymentId">${paymentId}</camunda:inputParameter>
+          <camunda:inputParameter name="userId">${userId}</camunda:inputParameter>
+          <camunda:inputParameter name="merchantId">${merchantId}</camunda:inputParameter>
+          <camunda:inputParameter name="couponId">${couponId}</camunda:inputParameter>
+          <camunda:inputParameter name="amount">${amount}</camunda:inputParameter>
+          <camunda:inputParameter name="validationError">${validationError}</camunda:inputParameter>
+          <camunda:inputParameter name="paymentError">${paymentError}</camunda:inputParameter>
+          <camunda:outputParameter name="failureProcessed">${failureProcessed}</camunda:outputParameter>
+          <camunda:outputParameter name="retryPossible">${retryPossible}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_RollbackToFailure</bpmn:incoming>
+      <bpmn:outgoing>Flow_FailureToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 결제 성공 종료 이벤트 -->
+    <bpmn:endEvent id="PaymentCompleted" name="결제 완료">
+      <bpmn:documentation>
+        결제 프로세스가 성공적으로 완료되었습니다.
+        - 쿠폰 잔액 차감 완료
+        - PG 결제 승인 완료
+        - 결제 내역 DB 저장 완료
+        - 성공 알림 발송 완료
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:executionListener event="start" delegateExpression="${paymentCompletedListener}" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_SuccessToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- 결제 실패 종료 이벤트 -->
+    <bpmn:endEvent id="PaymentFailed" name="결제 실패">
+      <bpmn:documentation>
+        결제 프로세스가 실패로 종료되었습니다.
+        - 쿠폰 잔액 롤백 완료
+        - 실패 사유 기록 완료
+        - 사용자에게 실패 알림 완료
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:executionListener event="start" delegateExpression="${paymentFailedListener}" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_FailureToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- 결제 취소를 위한 메시지 이벤트 -->
+    <bpmn:intermediateCatchEvent id="PaymentCancelEvent" name="결제 취소 요청">
+      <bpmn:incoming>Flow_CancelBoundary</bpmn:incoming>
+      <bpmn:outgoing>Flow_CancelToRollback</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_PaymentCancel"/>
+    </bpmn:intermediateCatchEvent>
+
+    <!-- 결제 취소를 위한 경계 이벤트 (PG 처리 중 취소) -->
+    <bpmn:boundaryEvent id="BoundaryPaymentCancel" name="결제 취소"
+      attachedToRef="ProcessPayment" cancelActivity="true">
+      <bpmn:outgoing>Flow_CancelBoundary</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_PaymentCancel"/>
+    </bpmn:boundaryEvent>
+
+    <!-- 타이머 이벤트 (결제 타임아웃) -->
+    <bpmn:boundaryEvent id="PaymentTimeout" name="결제 타임아웃"
+      attachedToRef="ProcessPayment" cancelActivity="true">
+      <bpmn:outgoing>Flow_TimeoutToRollback</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT30S</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- 시퀀스 플로우 정의 -->
+    <bpmn:sequenceFlow id="Flow_StartToValidation" name="결제 시작"
+      sourceRef="StartPayment" targetRef="ValidateCoupon" />
+
+    <bpmn:sequenceFlow id="Flow_ValidationToGateway"
+      sourceRef="ValidateCoupon" targetRef="ValidationGateway" />
+
+    <bpmn:sequenceFlow id="Flow_ValidationSuccess" name="검증 성공"
+      sourceRef="ValidationGateway" targetRef="ProcessPayment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">
+        ${couponReserved == true}
+      </bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="Flow_ValidationError" name="검증 실패"
+      sourceRef="ValidationGateway" targetRef="RollbackCoupon" />
+
+    <bpmn:sequenceFlow id="Flow_PaymentToGateway"
+      sourceRef="ProcessPayment" targetRef="PaymentGateway" />
+
+    <bpmn:sequenceFlow id="Flow_PaymentSuccess" name="결제 성공"
+      sourceRef="PaymentGateway" targetRef="ConfirmCoupon">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">
+        ${paymentSuccess == true}
+      </bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="Flow_PaymentFailure" name="결제 실패"
+      sourceRef="PaymentGateway" targetRef="RollbackCoupon" />
+
+    <bpmn:sequenceFlow id="Flow_ConfirmToSuccess"
+      sourceRef="ConfirmCoupon" targetRef="ProcessPaymentSuccess" />
+
+    <bpmn:sequenceFlow id="Flow_SuccessToEnd"
+      sourceRef="ProcessPaymentSuccess" targetRef="PaymentCompleted" />
+
+    <bpmn:sequenceFlow id="Flow_RollbackToFailure"
+      sourceRef="RollbackCoupon" targetRef="ProcessPaymentFailure" />
+
+    <bpmn:sequenceFlow id="Flow_FailureToEnd"
+      sourceRef="ProcessPaymentFailure" targetRef="PaymentFailed" />
+
+    <bpmn:sequenceFlow id="Flow_CancelBoundary" name="취소 요청"
+      sourceRef="BoundaryPaymentCancel" targetRef="PaymentCancelEvent" />
+
+    <bpmn:sequenceFlow id="Flow_CancelToRollback" name="취소 처리"
+      sourceRef="PaymentCancelEvent" targetRef="RollbackCoupon" />
+
+    <bpmn:sequenceFlow id="Flow_TimeoutToRollback" name="타임아웃 처리"
+      sourceRef="PaymentTimeout" targetRef="RollbackCoupon" />
+
+  </bpmn:process>
+
+  <!-- 메시지 정의 -->
+  <bpmn:message id="Message_PaymentCancel" name="PaymentCancelMessage" />
+
+  <!-- 다이어그램 정보 (레이아웃) -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_PaymentProcess">
+    <bpmndi:BPMNPlane id="BPMNPlane_PaymentProcess" bpmnElement="PaymentProcess">
+
+      <!-- 시작 이벤트 -->
+      <bpmndi:BPMNShape id="Shape_StartPayment" bpmnElement="StartPayment">
+        <dc:Bounds x="150" y="200" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="130" y="243" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- 쿠폰 검증 -->
+      <bpmndi:BPMNShape id="Shape_ValidateCoupon" bpmnElement="ValidateCoupon">
+        <dc:Bounds x="250" y="178" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+
+      <!-- 검증 게이트웨이 -->
+      <bpmndi:BPMNShape id="Shape_ValidationGateway" bpmnElement="ValidationGateway" isMarkerVisible="true">
+        <dc:Bounds x="400" y="193" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="386" y="163" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- PG 결제 처리 -->
+      <bpmndi:BPMNShape id="Shape_ProcessPayment" bpmnElement="ProcessPayment">
+        <dc:Bounds x="520" y="178" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+
+      <!-- 결제 게이트웨이 -->
+      <bpmndi:BPMNShape id="Shape_PaymentGateway" bpmnElement="PaymentGateway" isMarkerVisible="true">
+        <dc:Bounds x="680" y="193" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="666" y="163" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- 쿠폰 확정 -->
+      <bpmndi:BPMNShape id="Shape_ConfirmCoupon" bpmnElement="ConfirmCoupon">
+        <dc:Bounds x="800" y="178" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+
+      <!-- 성공 처리 -->
+      <bpmndi:BPMNShape id="Shape_ProcessPaymentSuccess" bpmnElement="ProcessPaymentSuccess">
+        <dc:Bounds x="970" y="178" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+
+      <!-- 성공 종료 -->
+      <bpmndi:BPMNShape id="Shape_PaymentCompleted" bpmnElement="PaymentCompleted">
+        <dc:Bounds x="1130" y="200" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1126" y="243" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- 롤백 처리 -->
+      <bpmndi:BPMNShape id="Shape_RollbackCoupon" bpmnElement="RollbackCoupon">
+        <dc:Bounds x="520" y="350" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+
+      <!-- 실패 처리 -->
+      <bpmndi:BPMNShape id="Shape_ProcessPaymentFailure" bpmnElement="ProcessPaymentFailure">
+        <dc:Bounds x="800" y="350" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+
+      <!-- 실패 종료 -->
+      <bpmndi:BPMNShape id="Shape_PaymentFailed" bpmnElement="PaymentFailed">
+        <dc:Bounds x="970" y="372" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="966" y="415" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- 취소 이벤트 -->
+      <bpmndi:BPMNShape id="Shape_PaymentCancelEvent" bpmnElement="PaymentCancelEvent">
+        <dc:Bounds x="570" y="100" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="552" y="70" width="72" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- 경계 이벤트들 -->
+      <bpmndi:BPMNShape id="Shape_BoundaryPaymentCancel" bpmnElement="BoundaryPaymentCancel">
+        <dc:Bounds x="602" y="160" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="625" y="143" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_PaymentTimeout" bpmnElement="PaymentTimeout">
+        <dc:Bounds x="552" y="160" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="535" y="143" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- 연결선들 -->
+      <bpmndi:BPMNEdge id="Edge_Flow_StartToValidation" bpmnElement="Flow_StartToValidation">
+        <di:waypoint x="186" y="218" />
+        <di:waypoint x="250" y="218" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="200" y="200" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ValidationToGateway" bpmnElement="Flow_ValidationToGateway">
+        <di:waypoint x="350" y="218" />
+        <di:waypoint x="400" y="218" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ValidationSuccess" bpmnElement="Flow_ValidationSuccess">
+        <di:waypoint x="450" y="218" />
+        <di:waypoint x="520" y="218" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="465" y="200" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ValidationError" bpmnElement="Flow_ValidationError">
+        <di:waypoint x="425" y="243" />
+        <di:waypoint x="425" y="390" />
+        <di:waypoint x="520" y="390" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="435" y="310" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_PaymentToGateway" bpmnElement="Flow_PaymentToGateway">
+        <di:waypoint x="620" y="218" />
+        <di:waypoint x="680" y="218" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_PaymentSuccess" bpmnElement="Flow_PaymentSuccess">
+        <di:waypoint x="730" y="218" />
+        <di:waypoint x="800" y="218" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="745" y="200" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_PaymentFailure" bpmnElement="Flow_PaymentFailure">
+        <di:waypoint x="705" y="243" />
+        <di:waypoint x="705" y="320" />
+        <di:waypoint x="620" y="320" />
+        <di:waypoint x="620" y="350" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="640" y="300" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ConfirmToSuccess" bpmnElement="Flow_ConfirmToSuccess">
+        <di:waypoint x="900" y="218" />
+        <di:waypoint x="970" y="218" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_SuccessToEnd" bpmnElement="Flow_SuccessToEnd">
+        <di:waypoint x="1070" y="218" />
+        <di:waypoint x="1130" y="218" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_RollbackToFailure" bpmnElement="Flow_RollbackToFailure">
+        <di:waypoint x="620" y="390" />
+        <di:waypoint x="800" y="390" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_FailureToEnd" bpmnElement="Flow_FailureToEnd">
+        <di:waypoint x="900" y="390" />
+        <di:waypoint x="970" y="390" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_CancelBoundary" bpmnElement="Flow_CancelBoundary">
+        <di:waypoint x="620" y="160" />
+        <di:waypoint x="620" y="118" />
+        <di:waypoint x="606" y="118" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="625" y="130" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_CancelToRollback" bpmnElement="Flow_CancelToRollback">
+        <di:waypoint x="570" y="118" />
+        <di:waypoint x="500" y="118" />
+        <di:waypoint x="500" y="320" />
+        <di:waypoint x="570" y="350" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="475" y="200" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_TimeoutToRollback" bpmnElement="Flow_TimeoutToRollback">
+        <di:waypoint x="570" y="160" />
+        <di:waypoint x="570" y="280" />
+        <di:waypoint x="570" y="350" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="520" y="260" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>
