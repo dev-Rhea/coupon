@@ -12,10 +12,12 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
@@ -23,6 +25,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
+@Slf4j
 public class Coupon extends BaseTimeEntity {
 
     @Id
@@ -46,6 +49,8 @@ public class Coupon extends BaseTimeEntity {
     @Column(name = "status", length = 20)
     private CouponStatus status = CouponStatus.ACTIVE;
 
+    private static final int DEFAULT_EXPIRY_DAYS = 90;
+
     @Builder
     public Coupon(String couponId, User user, BigDecimal originalAmount,
         BigDecimal remainingAmount, LocalDate expiryDate) {
@@ -53,7 +58,7 @@ public class Coupon extends BaseTimeEntity {
         this.user = user;
         this.originalAmount = originalAmount;
         this.remainingAmount = remainingAmount;
-        this.expiryDate = expiryDate;
+        this.expiryDate = expiryDate != null ? expiryDate : LocalDate.now().plusDays(DEFAULT_EXPIRY_DAYS);
     }
 
     // 비즈니스 로직 메서드들
@@ -92,6 +97,23 @@ public class Coupon extends BaseTimeEntity {
 
     public void expire() {
         this.status = CouponStatus.EXPIRED;
+        this.remainingAmount = BigDecimal.ZERO;
+    }
+
+    /**
+     * 강제 만료 처리 (배치용)
+     */
+    public void forceExpire(String reason) {
+        expire();
+        log.info("쿠폰 기간 만료: couponId={}, reason={}, originalAmount={}, expiredAmount={}",
+            couponId, reason, originalAmount, remainingAmount);
+    }
+
+    /**
+     * 만료 예정 쿠폰 확인 (D - 7)
+     */
+    public boolean isExpiringSoon() {
+        return ChronoUnit.DAYS.between(LocalDate.now(), expiryDate) <= 7 && isActive();
     }
 
     @Getter

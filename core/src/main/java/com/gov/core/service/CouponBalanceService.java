@@ -149,12 +149,17 @@ public class CouponBalanceService {
     }
 
     /**
-     * 쿠폰 잔액 캐시 삭제
+     * 쿠폰 잔액 캐시 삭제 (만료 처리용)
      */
     public void clearBalance(String couponId) {
         String key = BALANCE_KEY_PREFIX + couponId;
-        redisTemplate.delete(key);
-        log.debug("쿠폰 잔액 캐시 삭제: couponId={}", couponId);
+        Boolean deleted = redisTemplate.delete(key);
+
+        if (Boolean.TRUE.equals(deleted)) {
+            log.debug("쿠폰 잔액 캐시 삭제 완료: couponId={}", couponId);
+        } else {
+            log.debug("쿠폰 잔액 캐시 없음: couponId={}", couponId);
+        }
     }
 
 }

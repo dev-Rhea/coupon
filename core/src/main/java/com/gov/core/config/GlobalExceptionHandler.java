@@ -53,4 +53,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException e) {
+
+        log.error("런타임 예외 발생", e);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "RUNTIME_EXCEPTION");
+        response.put("message", e.getMessage());
+        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
 }

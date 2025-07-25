@@ -1,6 +1,7 @@
 package com.gov.core.repository;
 
 import com.gov.core.entity.Coupon;
+import com.gov.core.entity.User;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -17,7 +18,7 @@ public interface CouponRepository extends JpaRepository<Coupon, String> {
     @Query("SELECT c FROM Coupon c WHERE c.user.userId = :userId " +
         "AND c.status = 'ACTIVE' AND c.expiryDate >= :currentDate " +
         "ORDER BY c.expiryDate ASC")
-    List<Coupon> findActiveByUserId(@Param("userId") String userId,
+    List<Coupon> findActiveByUserId(@Param("userId") User userId,
         @Param("currentDate") LocalDate currentDate);
 
     /**
