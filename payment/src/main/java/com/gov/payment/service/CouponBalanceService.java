@@ -14,8 +14,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CouponBalanceService {
 
-    private RedisTemplate<String, String> redisTemplate;
-    private RedissonClient redissonClient;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final RedissonClient redissonClient;
 
     private static final String BALANCE_KEY_PREFIX = "coupon:balance:";
     private static final String LOCK_KEY_PREFIX = "coupon:lock:";
