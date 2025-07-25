@@ -1,5 +1,6 @@
 package com.gov.payment.listener;
 
+import com.gov.payment.service.CleanupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.camunda.bpm.engine.delegate.DelegateExecution;
@@ -12,7 +13,6 @@ public class PaymentFailedListener {
 
     private final CleanupService cleanupService;
 
-    @Override
     public void notify(DelegateExecution execution) throws Exception {
         String paymentId = (String) execution.getVariable("paymentId");
         String failureReason = (String) execution.getVariable("finalFailureReason");

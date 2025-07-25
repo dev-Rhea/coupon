@@ -13,7 +13,6 @@ public class PaymentCompletedListener {
 
     private final CleanupService cleanupService;
 
-    @Override
     public void notify(DelegateExecution execution) throws Exception {
         String paymentId = (String) execution.getVariable("paymentId");
 
