@@ -1,12 +1,17 @@
 package com.gov.payment.service;
 
+import com.gov.core.entity.Coupon;
+import com.gov.core.entity.Merchant;
+import com.gov.core.entity.User;
+import com.gov.core.repository.CouponRepository;
+import com.gov.core.repository.MerchantRepository;
+import com.gov.core.repository.UserRepository;
 import com.gov.payment.dto.PaymentReqDto;
 import com.gov.payment.dto.PaymentResDto;
 import com.gov.payment.dto.PaymentSearchDto;
 import com.gov.payment.entity.Payment;
 import com.gov.payment.entity.PaymentStatus;
 import com.gov.payment.repository.PaymentRepository;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final UserRepository userRepository;
+    private final MerchantRepository merchantRepository;
+    private final CouponRepository couponRepository;
     private final RuntimeService runtimeService;
-    private final CouponBalanceService couponBalanceService;
 
     /**
      * 결제 요청 처리 (Camunda 워크플로우 시작)
@@ -34,20 +41,30 @@ public class PaymentService {
         log.info("결제 요청 시작: userId={}, merchantId={}, couponId={}, amount={}",
             request.userId(), request.merchantId(), request.couponId(), request.amount());
 
-        // 1. 결제 엔티티 생성
-        String paymentId = generatePaymentId();
-        Payment payment = new Payment(
-            paymentId,
-            request.userId(),
-            request.merchantId(),
-            request.couponId(),
-            request.amount()
-        );
+        // 1. 연관 엔티티 조회
+        User user = userRepository.findById(request.userId())
+            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + request.userId()));
 
-        // 2. DB 저장
+        Merchant merchant = merchantRepository.findById(request.merchantId())
+            .orElseThrow(() -> new IllegalArgumentException("가맹점을 찾을 수 없습니다: " + request.merchantId()));
+
+        Coupon coupon = couponRepository.findById(request.couponId())
+            .orElseThrow(() -> new IllegalArgumentException("쿠폰을 찾을 수 없습니다: " + request.couponId()));
+
+        // 2. 결제 엔티티 생성
+        String paymentId = generatePaymentId();
+        Payment payment = Payment.builder()
+            .paymentId(paymentId)
+            .user(user)
+            .merchant(merchant)
+            .coupon(coupon)
+            .amount(request.amount())
+            .build();
+
+        // 3. DB 저장
         paymentRepository.save(payment);
 
-        // 3. Camunda 워크플로우 시작
+        // 4. Camunda 워크플로우 시작
         Map<String, Object> variables = new HashMap<>();
         variables.put("paymentId", paymentId);
         variables.put("userId", request.userId());
@@ -59,8 +76,8 @@ public class PaymentService {
             .startProcessInstanceByKey("PaymentProcess", paymentId, variables)
             .getProcessInstanceId();
 
-        // 4. 프로세스 인스턴스 ID 업데이트
-        payment.setProcessInstanceId(processInstanceId);
+        // 5. 프로세스 인스턴스 ID 업데이트
+        payment.assignProcessInstance(processInstanceId);
         paymentRepository.save(payment);
 
         log.info("결제 워크플로우 시작 완료: paymentId={}, processInstanceId={}",
@@ -75,7 +92,7 @@ public class PaymentService {
     @Transactional(readOnly = true)
     public PaymentResDto getPayment(String paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
-            .orElseThrow(() -> new RuntimeException("결제 정보를 찾을 수 없습니다: " + paymentId));
+            .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다: " + paymentId));
 
         return PaymentResDto.from(payment);
     }
@@ -85,7 +102,7 @@ public class PaymentService {
      */
     @Transactional(readOnly = true)
     public List<PaymentResDto> getUserPayments(String userId) {
-        List<Payment> payments = paymentRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        List<Payment> payments = paymentRepository.findByUser_UserIdOrderByCreatedAtDesc(userId);
         return payments.stream()
             .map(PaymentResDto::from)
             .toList();
@@ -96,7 +113,7 @@ public class PaymentService {
      */
     @Transactional(readOnly = true)
     public List<PaymentResDto> getMerchantPayments(String merchantId) {
-        List<Payment> payments = paymentRepository.findByMerchantIdOrderByCreatedAtDesc(merchantId);
+        List<Payment> payments = paymentRepository.findByMerchant_MerchantIdOrderByCreatedAtDesc(merchantId);
         return payments.stream()
             .map(PaymentResDto::from)
             .toList();
@@ -108,17 +125,19 @@ public class PaymentService {
     @Transactional(readOnly = true)
     public List<PaymentResDto> searchPayments(PaymentSearchDto searchDto) {
         if (!searchDto.isValid()) {
-            throw new IllegalArgumentException("잘못된 검색 조건입니다");
+            String error = searchDto.getValidationError();
+            throw new IllegalArgumentException(error != null ? error : "잘못된 검색 조건입니다");
         }
 
         List<Payment> payments = paymentRepository.findBySearchConditions(
-            searchDto.getUserId(),
-            searchDto.getMerchantId(),
-            searchDto.getStatus(),
-            searchDto.getMinAmount(),
-            searchDto.getMaxAmount(),
-            searchDto.getStartDate(),
-            searchDto.getEndDate()
+            searchDto.userId(),
+            searchDto.merchantId(),
+            searchDto.couponId(),
+            searchDto.status(),
+            searchDto.minAmount(),
+            searchDto.maxAmount(),
+            searchDto.startDate(),
+            searchDto.endDate()
         );
 
         return payments.stream()
@@ -131,10 +150,10 @@ public class PaymentService {
      */
     public PaymentResDto cancelPayment(String paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
-            .orElseThrow(() -> new RuntimeException("결제 정보를 찾을 수 없습니다: " + paymentId));
+            .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다: " + paymentId));
 
-        if (payment.getStatus() != PaymentStatus.COMPLETED) {
-            throw new RuntimeException("완료된 결제만 취소할 수 있습니다");
+        if (!payment.isCompleted()) {
+            throw new IllegalStateException("완료된 결제만 취소할 수 있습니다");
         }
 
         log.info("결제 취소 요청: paymentId={}", paymentId);
@@ -153,23 +172,60 @@ public class PaymentService {
     public void updatePaymentStatus(String paymentId, PaymentStatus status,
         String pgTransactionId, String failureReason) {
         Payment payment = paymentRepository.findById(paymentId)
-            .orElseThrow(() -> new RuntimeException("결제 정보를 찾을 수 없습니다: " + paymentId));
+            .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다: " + paymentId));
 
-        payment.setStatus(status);
-        if (status == PaymentStatus.COMPLETED) {
-            payment.setPaymentDate(LocalDateTime.now());
+        // 비즈니스 메서드 사용
+        switch (status) {
+            case COMPLETED -> payment.markAsCompleted();
+            case FAILED -> payment.markAsFailed(failureReason);
+            case PROCESSING -> payment.changeStatus(PaymentStatus.PROCESSING);
+            default -> payment.changeStatus(status);
         }
+
         if (pgTransactionId != null) {
-            payment.setPgTransactionId(pgTransactionId);
-        }
-        if (failureReason != null) {
-            payment.setFailureReason(failureReason);
+            payment.assignPgTransaction(pgTransactionId);
         }
 
         paymentRepository.save(payment);
 
         log.info("결제 상태 업데이트: paymentId={}, status={}, pgTransactionId={}",
             paymentId, status, pgTransactionId);
+    }
+
+    /**
+     * 결제 완료 처리
+     */
+    public void completePayment(String paymentId, String pgTransactionId) {
+        Payment payment = paymentRepository.findById(paymentId)
+            .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다: " + paymentId));
+
+        payment.markAsCompleted();
+        if (pgTransactionId != null) {
+            payment.assignPgTransaction(pgTransactionId);
+        }
+
+        paymentRepository.save(payment);
+        log.info("결제 완료 처리: paymentId={}, pgTransactionId={}", paymentId, pgTransactionId);
+    }
+
+    /**
+     * 결제 실패 처리
+     */
+    public void failPayment(String paymentId, String failureReason) {
+        Payment payment = paymentRepository.findById(paymentId)
+            .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다: " + paymentId));
+
+        payment.markAsFailed(failureReason);
+        paymentRepository.save(payment);
+        log.info("결제 실패 처리: paymentId={}, failureReason={}", paymentId, failureReason);
+    }
+
+    /**
+     * 정산 가능한 결제 조회
+     */
+    @Transactional(readOnly = true)
+    public List<Payment> getSettlablePayments(String merchantId) {
+        return paymentRepository.findByMerchant_MerchantIdAndStatus(merchantId, PaymentStatus.COMPLETED);
     }
 
     private String generatePaymentId() {
