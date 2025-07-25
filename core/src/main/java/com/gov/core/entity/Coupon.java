@@ -12,12 +12,10 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
@@ -25,7 +23,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
-public class Coupon {
+public class Coupon extends BaseTimeEntity {
 
     @Id
     @Column(name = "coupon_id", length = 50)
@@ -48,10 +46,6 @@ public class Coupon {
     @Column(name = "status", length = 20)
     private CouponStatus status = CouponStatus.ACTIVE;
 
-    @CreatedDate
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
     @Builder
     public Coupon(String couponId, User user, BigDecimal originalAmount,
         BigDecimal remainingAmount, LocalDate expiryDate) {
@@ -60,7 +54,6 @@ public class Coupon {
         this.originalAmount = originalAmount;
         this.remainingAmount = remainingAmount;
         this.expiryDate = expiryDate;
-        this.status = CouponStatus.ACTIVE;
     }
 
     // 비즈니스 로직 메서드들
