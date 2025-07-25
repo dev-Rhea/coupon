@@ -22,13 +22,6 @@ public interface CouponRepository extends JpaRepository<Coupon, String> {
         @Param("currentDate") LocalDate currentDate);
 
     /**
-     * 사용자의 모든 쿠폰 조회
-     */
-    @Query("SELECT c FROM Coupon c WHERE c.user.userId = :userId " +
-        "ORDER BY c.createdAt DESC")
-    List<Coupon> findAllByUserId(@Param("userId") String userId);
-
-    /**
      * 특정 금액 이상 사용 가능한 쿠폰 조회
      */
     @Query("SELECT c FROM Coupon c WHERE c.user.userId = :userId " +

@@ -1,5 +1,6 @@
 package com.gov.core.entity;
 
+import com.gov.core.config.JpaConverterJson;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
