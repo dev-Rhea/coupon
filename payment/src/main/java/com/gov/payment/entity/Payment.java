@@ -1,23 +1,27 @@
 package com.gov.payment.entity;
 
+import com.gov.core.entity.BaseTimeEntity;
 import com.gov.core.entity.Coupon;
 import com.gov.core.entity.Merchant;
 import com.gov.core.entity.User;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -25,7 +29,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "payments")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Payment {
+public class Payment extends BaseTimeEntity {
 
     @Id
     @Column(name = "payment_id", length = 50)
@@ -62,13 +66,10 @@ public class Payment {
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<SettlementDetail> settlementDetails = new ArrayList<>();
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    // 생성자
+    @Builder
     public Payment(String paymentId, User user, Merchant merchant,
         Coupon coupon, BigDecimal amount) {
         this.paymentId = paymentId;
@@ -76,39 +77,72 @@ public class Payment {
         this.merchant = merchant;
         this.coupon = coupon;
         this.amount = amount;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
     }
 
-    public Payment(String paymentId, @NotBlank String s, @NotBlank String merchantId, @NotBlank String couponId, @NotBlank @DecimalMin(value = "0.01") BigDecimal amount) {
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void setPaymentId(String paymentId) {
+    public void updatePaymentId(String paymentId) {
         this.paymentId = paymentId;
     }
 
-    public void setStatus(PaymentStatus status) {
+    public void changeStatus(PaymentStatus status) {
         this.status = status;
+        if (status == PaymentStatus.COMPLETED) {
+            this.paymentDate = LocalDateTime.now();
+        }
     }
 
-    public void setPaymentDate(LocalDateTime paymentDate) {
-        this.paymentDate = paymentDate;
+    public void markAsCompleted() {
+        this.status = PaymentStatus.COMPLETED;
+        this.paymentDate = LocalDateTime.now();
     }
 
-    public void setProcessInstanceId(String processInstanceId) {
+    public void markAsFailed(String failureReason) {
+        this.status = PaymentStatus.FAILED;
+        this.failureReason = failureReason;
+    }
+
+    public void assignProcessInstance(String processInstanceId) {
         this.processInstanceId = processInstanceId;
     }
 
-    public void setPgTransactionId(String pgTransactionId) {
+    public void assignPgTransaction(String pgTransactionId) {
         this.pgTransactionId = pgTransactionId;
     }
 
-    public void setFailureReason(String failureReason) {
-        this.failureReason = failureReason;
+    public boolean isCompleted() {
+        return this.status == PaymentStatus.COMPLETED;
+    }
+
+    public boolean isFailed() {
+        return this.status == PaymentStatus.FAILED;
+    }
+
+    public boolean isPending() {
+        return this.status == PaymentStatus.PENDING;
+    }
+
+    public boolean isProcessing() {
+        return this.status == PaymentStatus.PROCESSING;
+    }
+
+    public void addSettlementDetail(SettlementDetail detail) {
+        this.settlementDetails.add(detail);
+    }
+
+    public void removeSettlementDetail(SettlementDetail detail) {
+        this.settlementDetails.remove(detail);
+    }
+
+    public List<SettlementDetail> getSettlementDetails() {
+        return new ArrayList<>(this.settlementDetails);
+    }
+
+    public boolean hasSettlementDetails() {
+        return !this.settlementDetails.isEmpty();
+    }
+
+    public BigDecimal getTotalSettledAmount() {
+        return this.settlementDetails.stream()
+            .map(SettlementDetail::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }
