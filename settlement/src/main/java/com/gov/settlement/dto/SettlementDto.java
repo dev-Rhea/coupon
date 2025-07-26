@@ -12,8 +12,6 @@ public record SettlementDto(
     LocalDate settlementDate,
     BigDecimal totalAmount,
     Integer transactionCount,
-    SettlementStatus status,
-    LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    SettlementStatus status
 ) {
 }
