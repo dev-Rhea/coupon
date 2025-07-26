@@ -13,6 +13,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "settlement_details")
@@ -99,6 +100,10 @@ public class SettlementDetail extends BaseTimeEntity {
         this.payment = payment;
     }
 
+    public void setPayment(Payment payment) {
+        this.payment = payment;
+    }
+
     // 계산 메서드들
     private BigDecimal calculateCommissionAmount(BigDecimal amount, BigDecimal commissionRate) {
         if (amount == null || commissionRate == null) {
@@ -182,4 +187,5 @@ public class SettlementDetail extends BaseTimeEntity {
             .commissionAmount(commissionAmount)
             .build();
     }
+
 }
