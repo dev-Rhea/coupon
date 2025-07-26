@@ -150,7 +150,7 @@ public class Settlement extends BaseTimeEntity {
         if (totalAmount == null || commissionRate == null) {
             return BigDecimal.ZERO;
         }
-        return totalAmount.multiply(commissionRate);
+        return totalAmount.multiply(commissionRate).setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal calculateNetAmount(BigDecimal totalAmount, BigDecimal commissionAmount) {
