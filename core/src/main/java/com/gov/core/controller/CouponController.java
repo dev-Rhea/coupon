@@ -4,7 +4,7 @@ import com.gov.core.dto.CouponResDto;
 import com.gov.core.dto.CouponUseReqDto;
 import com.gov.core.dto.CouponValidationResDto;
 import com.gov.core.entity.Coupon;
-import com.gov.core.service.CouponServie;
+import com.gov.core.service.CouponService;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class CouponController {
 
-    private final CouponServie couponService;
+    private final CouponService couponService;
 
     /**
      * 사용자의 활성 쿠폰 목록 조회

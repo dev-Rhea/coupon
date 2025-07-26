@@ -2,7 +2,6 @@ package com.gov.payment.delegate;
 
 import com.gov.payment.event.PaymentFailedEvent;
 import com.gov.payment.service.MetricsService;
-import com.gov.payment.service.NotificationService;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class PaymentFailureDelegate implements JavaDelegate {
     private final ApplicationEventPublisher eventPublisher;
-    private final NotificationService notificationService;
     private final MetricsService metricsService;
 
     @Override
@@ -35,22 +33,19 @@ public class PaymentFailureDelegate implements JavaDelegate {
         log.info("결제 실패 후속 처리 시작: paymentId={}, reason={}", paymentId, failureReason);
 
         try {
-            // 1. 결제 실패 이벤트 발행
+            // 결제 실패 이벤트 발행
             PaymentFailedEvent failedEvent = new PaymentFailedEvent(
                 this, paymentId, userId, merchantId, couponId, amount, failureReason
             );
             eventPublisher.publishEvent(failedEvent);
 
-            // 2. 사용자 실패 알림
-            notificationService.sendPaymentFailureNotification(paymentId, failureReason);
-
-            // 3. 실패 메트릭 기록
+            // 실패 메트릭 기록
             metricsService.recordPaymentFailure(paymentId, failureReason);
 
-            // 4. 재시도 가능 여부 판단
+            // 재시도 가능 여부 판단
             boolean retryPossible = determineRetryPossibility(failureReason);
 
-            // 5. 실행 변수 설정
+            // 실행 변수 설정
             execution.setVariable("failureProcessed", true);
             execution.setVariable("retryPossible", retryPossible);
             execution.setVariable("finalFailureReason", failureReason);

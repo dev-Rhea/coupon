@@ -23,9 +23,9 @@ public record PaymentResDto(
     public static PaymentResDto from(Payment payment) {
         return PaymentResDto.builder()
             .paymentId(payment.getPaymentId())
-            .userId(payment.getUserId())
-            .merchantId(payment.getMerchantId())
-            .couponId(payment.getCouponId())
+            .userId(payment.getUser().getUserId())
+            .merchantId(payment.getMerchant().getMerchantId())
+            .couponId(payment.getCoupon().getCouponId())
             .amount(payment.getAmount())
             .status(payment.getStatus())
             .paymentDate(payment.getPaymentDate())

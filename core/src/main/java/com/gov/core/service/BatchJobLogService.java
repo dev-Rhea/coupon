@@ -5,6 +5,7 @@ import com.gov.core.entity.BatchJobLog.BatchJobStatus;
 import com.gov.core.entity.BatchJobLog.BatchJobType;
 import com.gov.core.repository.BatchJobLogRepository;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +39,7 @@ public class BatchJobLogService {
             .jobType(parsejobType(jobType))
             .status(BatchJobStatus.RUNNING)
             .startTime(LocalDateTime.now())
-            .parameters(parameters)
+            .parameters(parameters != null ? parameters : new HashMap<>())
             .build();
 
         return batchJobLogRepository.save(jobLog);
@@ -48,6 +49,12 @@ public class BatchJobLogService {
      * 배치 작업 완료 로그
      */
     public void completeJob(String logId, int totalCount, int successCount, int errorCount) {
+        if(totalCount < 0 || successCount < 0 || errorCount < 0) {
+            throw new IllegalArgumentException("totalCount, successCount, errorCount는 0 이상의 값이어야 합니다.");
+        }
+        if(successCount + errorCount > totalCount) {
+            throw new IllegalArgumentException("successCount와 errorCount의 합은 totalCount를 초과할 수 없습니다.");
+        }
         BatchJobLog jobLog = batchJobLogRepository.findById(logId)
             .orElseThrow(() -> new IllegalArgumentException("배치 작업 로그를 찾을 수 없습니다: " + logId));
 

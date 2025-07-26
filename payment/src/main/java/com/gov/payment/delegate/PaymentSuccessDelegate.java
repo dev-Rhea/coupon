@@ -2,7 +2,6 @@ package com.gov.payment.delegate;
 
 import com.gov.payment.event.PaymentCompletedEvent;
 import com.gov.payment.service.MetricsService;
-import com.gov.payment.service.NotificationService;
 import com.gov.payment.service.SettlementService;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +16,6 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class PaymentSuccessDelegate implements JavaDelegate {
     private final ApplicationEventPublisher eventPublisher;
-    private final NotificationService notificationService;
     private final SettlementService settlementService;
     private final MetricsService metricsService;
 
@@ -33,24 +31,20 @@ public class PaymentSuccessDelegate implements JavaDelegate {
         log.info("결제 성공 후속 처리 시작: paymentId={}", paymentId);
 
         try {
-            // 1. 결제 완료 이벤트 발행
+            // 결제 완료 이벤트 발행
             PaymentCompletedEvent completedEvent = new PaymentCompletedEvent(
                 this, paymentId, userId, merchantId, couponId, amount, pgTransactionId
             );
             eventPublisher.publishEvent(completedEvent);
 
-            // 2. 사용자 및 가맹점 알림
-            notificationService.sendPaymentSuccessNotification(paymentId);
-
-            // 3. 정산 데이터 생성
+            // 정산 데이터 생성
             settlementService.createSettlementData(paymentId);
 
-            // 4. 성공 메트릭 기록
+            // 성공 메트릭 기록
             metricsService.recordPaymentSuccess(paymentId);
 
-            // 5. 실행 변수 설정
+            // 실행 변수 설정
             execution.setVariable("successProcessed", true);
-            execution.setVariable("notificationSent", true);
             execution.setVariable("eventPublished", true);
 
             log.info("결제 성공 후속 처리 완료: paymentId={}", paymentId);
@@ -60,7 +54,6 @@ public class PaymentSuccessDelegate implements JavaDelegate {
 
             // 후속 처리 실패해도 결제는 성공으로 처리
             execution.setVariable("successProcessed", false);
-            execution.setVariable("notificationSent", false);
             execution.setVariable("eventPublished", false);
         }
     }

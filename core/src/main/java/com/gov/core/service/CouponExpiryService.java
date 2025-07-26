@@ -117,9 +117,7 @@ public class CouponExpiryService {
 
         // 변경사항 일괄 저장
         if (successCount > 0) {
-            couponRepository.saveAll(expiredCoupons.stream()
-                .filter(c -> c.getStatus() == Coupon.CouponStatus.EXPIRED)
-                .collect(Collectors.toList()));
+            couponRepository.saveAll(expiredCoupons);
         }
 
         // Record 생성 방법 수정 - builder() 사용
