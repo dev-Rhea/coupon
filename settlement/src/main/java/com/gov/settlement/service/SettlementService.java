@@ -1,5 +1,7 @@
 package com.gov.settlement.service;
 
+import com.gov.core.entity.Merchant;
+import com.gov.core.repository.MerchantRepository;
 import com.gov.settlement.dto.SettlementDto;
 import com.gov.settlement.entity.Settlement;
 import com.gov.settlement.entity.SettlementStatus;
@@ -25,8 +27,9 @@ public class SettlementService {
 
     private static final Logger logger = LoggerFactory.getLogger(SettlementService.class);
 
-    private SettlementRepository settlementRepository;
-    private JdbcTemplate jdbcTemplate;
+    private final SettlementRepository settlementRepository;
+    private final JdbcTemplate jdbcTemplate;
+    private final MerchantRepository merchantRepository;
 
     /**
      * 일일 정산 처리 (배치용)
@@ -58,12 +61,14 @@ public class SettlementService {
         // 정산 데이터 생성
         for (Map<String, Object> result : results) {
             String merchantId = (String) result.get("merchant_id");
+            Merchant merchant = merchantRepository.findById(merchantId)
+                .orElseThrow(() -> new RuntimeException("가맹점을 찾을 수 없습니다: " + merchantId));
             Integer transactionCount = ((Number) result.get("transaction_count")).intValue();
             BigDecimal totalAmount = (BigDecimal) result.get("total_amount");
 
             Settlement settlement = new Settlement(
-                generateSettlementId(settlementDate, merchantId),
-                merchantId,
+                generateSettlementId(settlementDate, merchant.getMerchantId()),
+                merchant,
                 settlementDate,
                 totalAmount,
                 transactionCount
@@ -158,11 +163,11 @@ public class SettlementService {
      */
     private SettlementDto convertToDto(Settlement settlement) {
         // 가맹점 이름 조회 (간단히 구현)
-        String merchantName = getMerchantName(settlement.getMerchantId());
+        String merchantName = getMerchantName(settlement.getMerchant().getMerchantId());
 
         return new SettlementDto(
             settlement.getSettlementId(),
-            settlement.getMerchantId(),
+            settlement.getMerchant().getMerchantId(),
             merchantName,
             settlement.getSettlementDate(),
             settlement.getTotalAmount(),

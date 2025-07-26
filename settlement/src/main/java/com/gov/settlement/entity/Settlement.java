@@ -1,10 +1,13 @@
 package com.gov.settlement.entity;
 
+import com.gov.core.entity.Merchant;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -24,8 +27,9 @@ public class Settlement {
     @Column(name = "settlement_id")
     private String settlementId;
 
-    @Column(name = "merchant_id", nullable = false)
-    private String merchantId;
+    @ManyToOne
+    @JoinColumn(name = "merchant_id", nullable = false)
+    private Merchant merchant;
 
     @Column(name = "settlement_date", nullable = false)
     private LocalDate settlementDate;
@@ -46,10 +50,10 @@ public class Settlement {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public Settlement(String settlementId, String merchantId, LocalDate settlementDate,
+    public Settlement(String settlementId, Merchant merchant, LocalDate settlementDate,
         BigDecimal totalAmount, Integer transactionCount) {
         this.settlementId = settlementId;
-        this.merchantId = merchantId;
+        this.merchant = merchant;
         this.settlementDate = settlementDate;
         this.totalAmount = totalAmount;
         this.transactionCount = transactionCount;
