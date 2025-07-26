@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -126,10 +127,12 @@ public class Payment extends BaseTimeEntity {
 
     public void addSettlementDetail(SettlementDetail detail) {
         this.settlementDetails.add(detail);
+        detail.setPayment(this);
     }
 
     public void removeSettlementDetail(SettlementDetail detail) {
         this.settlementDetails.remove(detail);
+        detail.setPayment(null);
     }
 
     public List<SettlementDetail> getSettlementDetails() {
@@ -143,6 +146,7 @@ public class Payment extends BaseTimeEntity {
     public BigDecimal getTotalSettledAmount() {
         return this.settlementDetails.stream()
             .map(SettlementDetail::getAmount)
+            .filter(Objects::nonNull)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }
