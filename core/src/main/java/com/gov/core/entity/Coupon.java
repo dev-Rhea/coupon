@@ -104,9 +104,10 @@ public class Coupon extends BaseTimeEntity {
      * 강제 만료 처리 (배치용)
      */
     public void forceExpire(String reason) {
+        BigDecimal expiredAmount = this.remainingAmount;
         expire();
         log.info("쿠폰 기간 만료: couponId={}, reason={}, originalAmount={}, expiredAmount={}",
-            couponId, reason, originalAmount, remainingAmount);
+            couponId, reason, originalAmount, expiredAmount);
     }
 
     /**

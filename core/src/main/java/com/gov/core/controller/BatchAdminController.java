@@ -41,36 +41,6 @@ public class BatchAdminController {
     }
 
     /**
-     * 만료 예정 쿠폰 알림 수동 실행
-     */
-    @PostMapping("/coupons/notify")
-    public ResponseEntity<Map<String, Object>> manualNotifyExpiringCoupons() {
-        log.info("만료 예정 쿠폰 알림 수동 실행 요청");
-
-        try {
-            couponExpiryService.processExpiredCoupons();
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "success");
-            response.put("message", "만료 예정 쿠폰 알림 완료");
-            response.put("timestamp", LocalDateTime.now());
-
-            log.info("만료 예정 쿠폰 알림 수동 실행 완료");
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("만료 예정 쿠폰 알림 수동 실행 실패", e);
-
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("status", "error");
-            errorResponse.put("message", "알림 실행 실패: " + e.getMessage());
-            errorResponse.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.internalServerError().body(errorResponse);
-        }
-    }
-
-    /**
      * 배치 작업 상태 조회
      */
     @GetMapping("/status")
@@ -82,11 +52,6 @@ public class BatchAdminController {
             status.put("status", "healthy");
             status.put("message", "배치 시스템이 정상 동작 중입니다");
             status.put("timestamp", LocalDateTime.now());
-            status.put("services", Map.of(
-                "couponExpiryService", "active",
-                "notificationService", "active"
-            ));
-
             return ResponseEntity.ok(status);
 
         } catch (Exception e) {

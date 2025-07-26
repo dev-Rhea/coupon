@@ -4,9 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
-import lombok.Builder;
 
-@Builder
 public record CouponExpiryResult(
     int totalCount,
     int successCount,
@@ -50,28 +48,24 @@ public record CouponExpiryResult(
      * 빈 결과 생성 (처리 대상이 없는 경우)
      */
     public static CouponExpiryResult empty() {
-        return CouponExpiryResult.builder()
-            .totalCount(0)
-            .successCount(0)
-            .errorCount(0)
-            .totalExpiredAmount(BigDecimal.ZERO)
-            .errorMessages(Collections.emptyList())
-            .processedAt(LocalDateTime.now())
-            .build();
+        return new CouponExpiryResult(
+            0, 0, 0,
+            BigDecimal.ZERO,
+            Collections.emptyList(),
+            LocalDateTime.now()
+        );
     }
 
     /**
      * 성공 결과 생성 (에러 없이 모든 처리 성공)
      */
     public static CouponExpiryResult success(int totalCount, BigDecimal totalExpiredAmount) {
-        return CouponExpiryResult.builder()
-            .totalCount(totalCount)
-            .successCount(totalCount)
-            .errorCount(0)
-            .totalExpiredAmount(totalExpiredAmount)
-            .errorMessages(Collections.emptyList())
-            .processedAt(LocalDateTime.now())
-            .build();
+        return new CouponExpiryResult(
+            totalCount, totalCount, 0,
+            totalExpiredAmount,
+            Collections.emptyList(),
+            LocalDateTime.now()
+        );
     }
 
     /**
@@ -79,14 +73,12 @@ public record CouponExpiryResult(
      */
     public static CouponExpiryResult partial(int totalCount, int successCount,
         BigDecimal totalExpiredAmount, List<String> errorMessages) {
-        return CouponExpiryResult.builder()
-            .totalCount(totalCount)
-            .successCount(successCount)
-            .errorCount(totalCount - successCount)
-            .totalExpiredAmount(totalExpiredAmount)
-            .errorMessages(errorMessages != null ? errorMessages : Collections.emptyList())
-            .processedAt(LocalDateTime.now())
-            .build();
+        return new CouponExpiryResult(
+            totalCount, successCount, totalCount - successCount,
+            totalExpiredAmount,
+            errorMessages,
+            LocalDateTime.now()
+        );
     }
 
     /**

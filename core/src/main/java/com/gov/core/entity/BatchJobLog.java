@@ -74,6 +74,12 @@ public class BatchJobLog {
     }
 
     public void complete(int totalCount, int successCount, int errorCount) {
+        if(totalCount < 0 || successCount < 0 || errorCount < 0) {
+            throw new IllegalArgumentException("카운트 값은 음수일 수 없습니다");
+        }
+        if(successCount + errorCount != totalCount) {
+            throw new IllegalArgumentException("성공 + 실패 건수가 전체 건수를 초과할 수 없습니다");
+        }
         this.status = BatchJobStatus.COMPLETED;
         this.endTime = LocalDateTime.now();
         this.processedCount = totalCount;
@@ -91,7 +97,8 @@ public class BatchJobLog {
     public enum BatchJobType {
         COUPON_EXPIRY("쿠폰 만료 처리"),
         SETTLEMENT("정산 처리"),
-        DATA_CLEANUP("데이터 정리");
+        DATA_CLEANUP("데이터 정리"),
+        UNKNOWN("알 수 없는 작업");
 
         private final String description;
 

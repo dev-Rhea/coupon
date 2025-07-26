@@ -26,10 +26,16 @@ public class BatchJobLogService {
      * 배치 작업 시작 로그
      */
     public BatchJobLog startJob(String jobType, String jobName, Map<String, Object> parameters) {
+        if(jobType == null || jobType.trim().isEmpty()) {
+            throw new IllegalArgumentException("jobType은 필수 값입니다.");
+        }
+        if(jobName == null || jobName.trim().isEmpty()) {
+            throw new IllegalArgumentException("jobName은 필수 값입니다.");
+        }
         BatchJobLog jobLog = BatchJobLog.builder()
             .logId(UUID.randomUUID().toString())
             .jobName(jobName)
-            .jobType(BatchJobType.valueOf(jobType))
+            .jobType(parsejobType(jobType))
             .status(BatchJobStatus.RUNNING)
             .startTime(LocalDateTime.now())
             .parameters(parameters)
@@ -58,5 +64,15 @@ public class BatchJobLogService {
 
         jobLog.fail(errorMessage);
         batchJobLogRepository.save(jobLog);
+    }
+
+    private BatchJobType parsejobType(String jobType) {
+        try {
+            return BatchJobType.valueOf(jobType);
+        }
+        catch (IllegalArgumentException e) {
+            log.warn("유효하지 않은 jobType: {}", jobType);
+            return BatchJobType.UNKNOWN;
+        }
     }
 }

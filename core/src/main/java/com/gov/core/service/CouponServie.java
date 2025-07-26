@@ -40,7 +40,7 @@ public class CouponServie {
             }
         });
 
-        log.info("사용자 활성 쿠폰 조회: userId={}, count={}", user, coupons.size());
+        log.info("사용자 활성 쿠폰 조회: userId={}, count={}", user.getUserId(), coupons.size());
         return coupons;
     }
 

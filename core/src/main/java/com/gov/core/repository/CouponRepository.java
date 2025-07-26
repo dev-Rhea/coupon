@@ -15,10 +15,10 @@ public interface CouponRepository extends JpaRepository<Coupon, String> {
     /**
      * 사용자의 활성 쿠폰 목록 조회
      */
-    @Query("SELECT c FROM Coupon c WHERE c.user.userId = :userId " +
+    @Query("SELECT c FROM Coupon c WHERE c.user = :user " +
         "AND c.status = 'ACTIVE' AND c.expiryDate >= :currentDate " +
         "ORDER BY c.expiryDate ASC")
-    List<Coupon> findActiveByUserId(@Param("userId") User userId,
+    List<Coupon> findActiveByUserId(@Param("user") User user,
         @Param("currentDate") LocalDate currentDate);
 
     /**

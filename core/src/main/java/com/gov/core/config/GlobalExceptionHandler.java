@@ -59,8 +59,8 @@ public class GlobalExceptionHandler {
         log.error("런타임 예외 발생", e);
 
         Map<String, Object> response = new HashMap<>();
-        response.put("error", "RUNTIME_EXCEPTION");
-        response.put("message", e.getMessage());
+        response.put("error", "INTERNAL_SERVER_ERROR");
+        response.put("message", "서버 내부 오류가 발생했습니다.");
         response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
