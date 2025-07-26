@@ -172,9 +172,7 @@ public class SettlementService {
             settlement.getSettlementDate(),
             settlement.getTotalAmount(),
             settlement.getTransactionCount(),
-            settlement.getStatus(),
-            settlement.getCreatedAt(),
-            settlement.getUpdatedAt()
+            settlement.getStatus()
         );
     }
 
