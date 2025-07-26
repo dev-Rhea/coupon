@@ -41,19 +41,17 @@ public interface SettlementRepository extends JpaRepository<Settlement, String> 
         @Param("endDate") LocalDate endDate);
 
     // 승인 대기 중인 정산들
-    @Query("SELECT s FROM Settlement s WHERE s.status = 'PENDING' " +
-        "ORDER BY s.createdAt ASC")
-    List<Settlement> findPendingSettlements();
+    List<Settlement> findByStatusOrderByCreatedAtAsc(SettlementStatus status);
 
     // 승인된 정산들
-    @Query("SELECT s FROM Settlement s WHERE s.status = 'APPROVED' " +
+    @Query("SELECT s FROM Settlement s WHERE s.status =: status " +
         "ORDER BY s.approvedAt DESC")
-    List<Settlement> findApprovedSettlements();
+    List<Settlement> findApprovedSettlements(@Param("status") SettlementStatus status);
 
     // 완료된 정산들
-    @Query("SELECT s FROM Settlement s WHERE s.status = 'COMPLETED' " +
+    @Query("SELECT s FROM Settlement s WHERE s.status =:status " +
         "ORDER BY s.transferredAt DESC")
-    List<Settlement> findCompletedSettlements();
+    List<Settlement> findCompletedSettlements(@Param("status") SettlementStatus status);
 
     // 통계용 메서드들
     @Query("SELECT COUNT(s) FROM Settlement s WHERE s.merchant.merchantId = :merchantId " +
