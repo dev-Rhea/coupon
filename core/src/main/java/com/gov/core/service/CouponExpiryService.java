@@ -123,14 +123,14 @@ public class CouponExpiryService {
         }
 
         // Record 생성 방법 수정 - builder() 사용
-        return CouponExpiryResult.builder()
-            .totalCount(expiredCoupons.size())
-            .successCount(successCount)
-            .errorCount(errorCount)
-            .totalExpiredAmount(totalExpiredAmount)
-            .errorMessages(errorMessages)
-            .processedAt(LocalDateTime.now())
-            .build();
+        return new CouponExpiryResult(
+            successCount + errorCount,
+            successCount,
+            errorCount,
+            totalExpiredAmount,
+            errorMessages,
+            LocalDateTime.now()
+        );
     }
 
     /**
