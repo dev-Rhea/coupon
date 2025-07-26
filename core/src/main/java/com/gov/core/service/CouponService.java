@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class CouponServie {
+public class CouponService {
 
     private final CouponRepository couponRepository;
     private final UserRepository userRepository;
