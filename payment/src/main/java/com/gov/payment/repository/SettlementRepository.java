@@ -1,9 +1,12 @@
 package com.gov.payment.repository;
 
+import com.gov.payment.dto.DailySettlementSummary;
+import com.gov.payment.dto.MonthlySettlementSummary;
 import com.gov.payment.entity.Settlement;
 import com.gov.payment.entity.SettlementStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -96,7 +99,7 @@ public interface SettlementRepository extends JpaRepository<Settlement, String> 
         "AND s.settlementDate BETWEEN :startDate AND :endDate " +
         "GROUP BY YEAR(s.settlementDate), MONTH(s.settlementDate) " +
         "ORDER BY YEAR(s.settlementDate) DESC, MONTH(s.settlementDate) DESC")
-    List<Object[]> findMonthlySettlementSummary(
+    List<MonthlySettlementSummary> findMonthlySettlementSummary(
         @Param("merchantId") String merchantId,
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate
@@ -110,7 +113,7 @@ public interface SettlementRepository extends JpaRepository<Settlement, String> 
         "WHERE s.settlementDate BETWEEN :startDate AND :endDate " +
         "GROUP BY s.settlementDate " +
         "ORDER BY s.settlementDate DESC")
-    List<Object[]> findDailySettlementSummary(
+    List<DailySettlementSummary> findDailySettlementSummary(
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate
     );
@@ -134,5 +137,5 @@ public interface SettlementRepository extends JpaRepository<Settlement, String> 
     @Query("SELECT s FROM Settlement s WHERE s.status = 'PENDING' " +
         "AND s.createdAt < :beforeDate " +
         "ORDER BY s.createdAt ASC")
-    List<Settlement> findLongPendingSettlements(@Param("beforeDate") LocalDate beforeDate);
+    List<Settlement> findLongPendingSettlements(@Param("beforeDate") LocalDateTime beforeDate);
 }
