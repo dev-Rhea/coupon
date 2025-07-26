@@ -17,7 +17,7 @@ public class CouponExpiryScheduler {
     /**
      * 매일 새벽 2시에 만료 쿠폰 처리
      */
-    @Scheduled(cron = "0 0 2 * * *")
+    @Scheduled(cron = "0 0 2 * * *", zone = "Asia/Seoul")
     public void processExpiredCoupons() {
         log.info("정기 쿠폰 만료 처리 배치 시작");
 
