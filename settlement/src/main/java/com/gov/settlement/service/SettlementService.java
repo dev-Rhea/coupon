@@ -121,7 +121,7 @@ public class SettlementService {
      */
     @Transactional(readOnly = true)
     public List<SettlementDto> getSettlementsByMerchant(String merchantId) {
-        List<Settlement> settlements = settlementRepository.findByMerchantIdOrderBySettlementDateDesc(merchantId);
+        List<Settlement> settlements = settlementRepository.findByMerchant_MerchantIdOrderBySettlementDateDesc(merchantId);
         return settlements.stream()
             .map(this::convertToDto)
             .collect(Collectors.toList());
