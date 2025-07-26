@@ -45,7 +45,6 @@ public class PaymentSuccessDelegate implements JavaDelegate {
 
             // 실행 변수 설정
             execution.setVariable("successProcessed", true);
-            execution.setVariable("notificationSent", true);
             execution.setVariable("eventPublished", true);
 
             log.info("결제 성공 후속 처리 완료: paymentId={}", paymentId);
@@ -55,7 +54,6 @@ public class PaymentSuccessDelegate implements JavaDelegate {
 
             // 후속 처리 실패해도 결제는 성공으로 처리
             execution.setVariable("successProcessed", false);
-            execution.setVariable("notificationSent", false);
             execution.setVariable("eventPublished", false);
         }
     }
