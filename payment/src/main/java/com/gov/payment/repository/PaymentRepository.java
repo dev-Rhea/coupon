@@ -73,34 +73,34 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
     @Query("SELECT COUNT(p) FROM Payment p WHERE p.merchant.merchantId = :merchantId AND p.status = :status")
     Long countByMerchantIdAndStatus(@Param("merchantId") String merchantId, @Param("status") PaymentStatus status);
 
-    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.merchant.merchantId = :merchantId AND p.status = 'COMPLETED'")
-    BigDecimal sumAmountByMerchantIdAndCompleted(@Param("merchantId") String merchantId);
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.merchant.merchantId = :merchantId AND p.status = :status ")
+    BigDecimal sumAmountByMerchantIdAndCompleted(@Param("merchantId") String merchantId, @Param("status") PaymentStatus status);
 
     @Query("SELECT COUNT(p) FROM Payment p WHERE p.user.userId = :userId AND p.status = :status")
     Long countByUserIdAndStatus(@Param("userId") String userId, @Param("status") PaymentStatus status);
 
-    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.user.userId = :userId AND p.status = 'COMPLETED'")
-    BigDecimal sumAmountByUserIdAndCompleted(@Param("userId") String userId);
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.user.userId = :userId AND p.status = :status ")
+    BigDecimal sumAmountByUserIdAndCompleted(@Param("userId") String userId, @Param("status") PaymentStatus status);
 
     // 쿠폰 사용 통계
-    @Query("SELECT COUNT(p) FROM Payment p WHERE p.coupon.couponId = :couponId AND p.status = 'COMPLETED'")
-    Long countByCouponIdAndCompleted(@Param("couponId") String couponId);
+    @Query("SELECT COUNT(p) FROM Payment p WHERE p.coupon.couponId = :couponId AND p.status = :status ")
+    Long countByCouponIdAndCompleted(@Param("couponId") String couponId, @Param("status") PaymentStatus status);
 
-    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.coupon.couponId = :couponId AND p.status = 'COMPLETED'")
-    BigDecimal sumAmountByCouponIdAndCompleted(@Param("couponId") String couponId);
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.coupon.couponId = :couponId AND p.status = :status ")
+    BigDecimal sumAmountByCouponIdAndCompleted(@Param("couponId") String couponId, @Param("status") PaymentStatus status);
 
     // 기간별 통계
-    @Query("SELECT COUNT(p) FROM Payment p WHERE p.status = 'COMPLETED' " +
+    @Query("SELECT COUNT(p) FROM Payment p WHERE p.status = :status " +
         "AND p.paymentDate BETWEEN :startDate AND :endDate")
     Long countCompletedPaymentsBetween(
         @Param("startDate") LocalDateTime startDate,
-        @Param("endDate") LocalDateTime endDate);
+        @Param("endDate") LocalDateTime endDate, @Param("status") PaymentStatus status);
 
-    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.status = 'COMPLETED' " +
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.status = :status " +
         "AND p.paymentDate BETWEEN :startDate AND :endDate")
     BigDecimal sumAmountCompletedPaymentsBetween(
         @Param("startDate") LocalDateTime startDate,
-        @Param("endDate") LocalDateTime endDate);
+        @Param("endDate") LocalDateTime endDate, @Param("status") PaymentStatus status);
 
     // 검색용 메서드들 (연관관계 반영)
     @Query("SELECT p FROM Payment p WHERE " +
