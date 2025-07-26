@@ -19,7 +19,7 @@ public interface SettlementRepository extends JpaRepository<Settlement, String> 
     List<Settlement> findByMerchant_MerchantIdOrderBySettlementDateDesc(String merchantId);
 
     // 가맹점과 날짜로 정산 조회
-    Optional<Settlement> findByMerchantIdAndSettlementDate(String merchantId, LocalDate settlementDate);
+    Optional<Settlement> findByMerchant_MerchantIdAndSettlementDate(String merchantId, LocalDate settlementDate);
 
     // 상태별 정산 조회
     List<Settlement> findByStatusOrderByCreatedAtDesc(SettlementStatus status);

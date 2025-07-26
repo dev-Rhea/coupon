@@ -172,7 +172,7 @@ public class SettlementService {
     }
 
     private Settlement getOrCreateSettlement(Merchant merchant, LocalDate settlementDate) {
-        return settlementRepository.findByMerchantIdAndSettlementDate(merchant.getMerchantId(), settlementDate)
+        return settlementRepository.findByMerchant_MerchantIdAndSettlementDate(merchant.getMerchantId(), settlementDate)
             .orElseGet(() -> {
                 Settlement newSettlement = Settlement.createForMerchant(
                     generateSettlementId(),
