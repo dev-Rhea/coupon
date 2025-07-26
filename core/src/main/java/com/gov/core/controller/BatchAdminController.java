@@ -52,11 +52,6 @@ public class BatchAdminController {
             status.put("status", "healthy");
             status.put("message", "배치 시스템이 정상 동작 중입니다");
             status.put("timestamp", LocalDateTime.now());
-            status.put("services", Map.of(
-                "couponExpiryService", "active",
-                "notificationService", "active"
-            ));
-
             return ResponseEntity.ok(status);
 
         } catch (Exception e) {
