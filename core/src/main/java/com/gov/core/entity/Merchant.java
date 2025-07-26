@@ -5,17 +5,14 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "merchants")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
-public class Merchant {
+public class Merchant extends BaseTimeEntity {
 
     @Id
     @Column(name = "merchant_id", length = 50)
@@ -27,10 +24,6 @@ public class Merchant {
     @Enumerated(EnumType.STRING)
     @Column(name = "category", length = 50)
     private MerchantCategory category;
-
-    @CreatedDate
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
 
     @Builder
     public Merchant(String merchantId, String merchantName, MerchantCategory category) {

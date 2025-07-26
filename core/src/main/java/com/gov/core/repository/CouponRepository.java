@@ -1,6 +1,7 @@
 package com.gov.core.repository;
 
 import com.gov.core.entity.Coupon;
+import com.gov.core.entity.User;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -14,18 +15,11 @@ public interface CouponRepository extends JpaRepository<Coupon, String> {
     /**
      * 사용자의 활성 쿠폰 목록 조회
      */
-    @Query("SELECT c FROM Coupon c WHERE c.user.userId = :userId " +
+    @Query("SELECT c FROM Coupon c WHERE c.user = :user " +
         "AND c.status = 'ACTIVE' AND c.expiryDate >= :currentDate " +
         "ORDER BY c.expiryDate ASC")
-    List<Coupon> findActiveByUserId(@Param("userId") String userId,
+    List<Coupon> findActiveByUserId(@Param("user") User user,
         @Param("currentDate") LocalDate currentDate);
-
-    /**
-     * 사용자의 모든 쿠폰 조회
-     */
-    @Query("SELECT c FROM Coupon c WHERE c.user.userId = :userId " +
-        "ORDER BY c.createdAt DESC")
-    List<Coupon> findAllByUserId(@Param("userId") String userId);
 
     /**
      * 특정 금액 이상 사용 가능한 쿠폰 조회

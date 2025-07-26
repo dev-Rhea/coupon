@@ -1,6 +1,7 @@
 package com.gov.core.service;
 
 import com.gov.core.entity.Coupon;
+import com.gov.core.entity.User;
 import com.gov.core.repository.CouponRepository;
 import com.gov.core.repository.UserRepository;
 import java.math.BigDecimal;
@@ -25,7 +26,10 @@ public class CouponServie {
      * 사용자의 활성 쿠폰 목록 조회
      */
     public List<Coupon> getActiveCoupons(String userId) {
-        List<Coupon> coupons = couponRepository.findActiveByUserId(userId, LocalDate.now());
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+
+        List<Coupon> coupons = couponRepository.findActiveByUserId(user, LocalDate.now());
 
         // Redis 잔액과 DB 잔액 동기화
         coupons.forEach(coupon -> {
@@ -36,7 +40,7 @@ public class CouponServie {
             }
         });
 
-        log.info("사용자 활성 쿠폰 조회: userId={}, count={}", userId, coupons.size());
+        log.info("사용자 활성 쿠폰 조회: userId={}, count={}", user.getUserId(), coupons.size());
         return coupons;
     }
 
@@ -108,7 +112,7 @@ public class CouponServie {
         Coupon coupon = getCoupon(couponId, userId);
 
         // Redis에서 금액 예약
-        boolean reserved = balanceService.reserveAmount(couponId, amount);
+        boolean reserved = balanceService.reserveAmount(coupon.getCouponId(), amount);
 
         if (reserved) {
             log.info("쿠폰 금액 예약 성공: couponId={}, userId={}, amount={}",
@@ -164,24 +168,6 @@ public class CouponServie {
         BigDecimal totalBalance = couponRepository.getTotalRemainingAmount(userId, LocalDate.now());
         log.info("사용자 총 쿠폰 잔액: userId={}, totalBalance={}", userId, totalBalance);
         return totalBalance;
-    }
-
-    /**
-     * 만료된 쿠폰 처리 (배치 작업용)
-     */
-    @Transactional
-    public int expireOldCoupons() {
-        List<Coupon> expiredCoupons = couponRepository.findExpiredCoupons(LocalDate.now());
-
-        for (Coupon coupon : expiredCoupons) {
-            coupon.expire();
-            balanceService.clearBalance(coupon.getCouponId());
-        }
-
-        couponRepository.saveAll(expiredCoupons);
-
-        log.info("만료된 쿠폰 처리 완료: count={}", expiredCoupons.size());
-        return expiredCoupons.size();
     }
 
     /**
