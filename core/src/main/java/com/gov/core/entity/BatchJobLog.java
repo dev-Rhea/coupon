@@ -97,7 +97,8 @@ public class BatchJobLog {
     public enum BatchJobType {
         COUPON_EXPIRY("쿠폰 만료 처리"),
         SETTLEMENT("정산 처리"),
-        DATA_CLEANUP("데이터 정리");
+        DATA_CLEANUP("데이터 정리"),
+        UNKNOWN("알 수 없는 작업");
 
         private final String description;
 
