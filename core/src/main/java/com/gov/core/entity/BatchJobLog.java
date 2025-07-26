@@ -74,6 +74,9 @@ public class BatchJobLog {
     }
 
     public void complete(int totalCount, int successCount, int errorCount) {
+        if(this.status != BatchJobStatus.RUNNING) {
+            throw new IllegalStateException("현재 상태는 {} 입니다. 완료 처리를 할 수 없습니다." + this.status);
+        }
         if(totalCount < 0 || successCount < 0 || errorCount < 0) {
             throw new IllegalArgumentException("카운트 값은 음수일 수 없습니다");
         }
@@ -88,6 +91,9 @@ public class BatchJobLog {
     }
 
     public void fail(String errorMessage) {
+        if(this.status != BatchJobStatus.RUNNING) {
+            throw new IllegalStateException("현재 상태는 {} 입니다. 실패 처리를 할 수 없습니다." + this.status);
+        }
         this.status = BatchJobStatus.FAILED;
         this.endTime = LocalDateTime.now();
         this.errorMessage = errorMessage;
