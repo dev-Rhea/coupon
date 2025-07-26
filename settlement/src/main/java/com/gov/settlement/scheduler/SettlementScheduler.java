@@ -19,7 +19,7 @@ public class SettlementScheduler {
     /**
      * 매일 새벽 2시에 전날 정산 처리
      */
-    @Scheduled(cron = "0 0 2 * * *")
+    @Scheduled(cron = "0 0 2 * * *", zone = "Asia/Seoul", fixedDelay = Long.MAX_VALUE)
     public void dailySettlement() {
         LocalDate yesterday = LocalDate.now().minusDays(1);
 

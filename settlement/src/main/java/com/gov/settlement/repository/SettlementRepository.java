@@ -11,7 +11,7 @@ import org.springframework.data.repository.query.Param;
 public interface SettlementRepository extends JpaRepository<Settlement, String> {
 
     // 가맹점별 정산 내역 조회
-    List<Settlement> findByMerchantIdOrderBySettlementDateDesc(String merchantId);
+    List<Settlement> findByMerchant_MerchantIdOrderBySettlementDateDesc(String merchantId);
 
     // 특정 날짜의 정산 내역 조회
     List<Settlement> findBySettlementDate(LocalDate settlementDate);
@@ -25,6 +25,6 @@ public interface SettlementRepository extends JpaRepository<Settlement, String> 
         @Param("endDate") LocalDate endDate);
 
     // 가맹점별 특정 날짜 정산 존재 여부 확인
-    boolean existsByMerchantIdAndSettlementDate(String merchantId, LocalDate settlementDate);
+    boolean existsByMerchant_MerchantIdAndSettlementDate(String merchantId, LocalDate settlementDate);
 
 }
