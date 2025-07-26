@@ -49,6 +49,12 @@ public class BatchJobLogService {
      * 배치 작업 완료 로그
      */
     public void completeJob(String logId, int totalCount, int successCount, int errorCount) {
+        if(totalCount < 0 || successCount < 0 || errorCount < 0) {
+            throw new IllegalArgumentException("totalCount, successCount, errorCount는 0 이상의 값이어야 합니다.");
+        }
+        if(successCount + errorCount > totalCount) {
+            throw new IllegalArgumentException("successCount와 errorCount의 합은 totalCount를 초과할 수 없습니다.");
+        }
         BatchJobLog jobLog = batchJobLogRepository.findById(logId)
             .orElseThrow(() -> new IllegalArgumentException("배치 작업 로그를 찾을 수 없습니다: " + logId));
 
