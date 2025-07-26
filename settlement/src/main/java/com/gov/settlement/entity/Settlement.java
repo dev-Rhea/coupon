@@ -54,11 +54,6 @@ public class Settlement extends BaseTimeEntity {
         this.transactionCount = transactionCount;
     }
 
-    // 상태 변경 메서드 (비즈니스 로직 포함)
-    public void updateStatus(SettlementStatus newStatus) {
-        this.status = newStatus;
-    }
-
     public void setStatus(SettlementStatus settlementStatus) {
         if (this.status != settlementStatus) {
             this.status = settlementStatus;
