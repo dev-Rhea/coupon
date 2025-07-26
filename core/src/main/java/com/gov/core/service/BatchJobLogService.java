@@ -5,6 +5,7 @@ import com.gov.core.entity.BatchJobLog.BatchJobStatus;
 import com.gov.core.entity.BatchJobLog.BatchJobType;
 import com.gov.core.repository.BatchJobLogRepository;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +39,7 @@ public class BatchJobLogService {
             .jobType(parsejobType(jobType))
             .status(BatchJobStatus.RUNNING)
             .startTime(LocalDateTime.now())
-            .parameters(parameters)
+            .parameters(parameters != null ? parameters : new HashMap<>())
             .build();
 
         return batchJobLogRepository.save(jobLog);
