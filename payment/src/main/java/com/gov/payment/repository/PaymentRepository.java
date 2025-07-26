@@ -1,5 +1,6 @@
 package com.gov.payment.repository;
 
+import com.gov.payment.dto.DailyPaymentSummary;
 import com.gov.payment.entity.Payment;
 import com.gov.payment.entity.PaymentStatus;
 import java.math.BigDecimal;
@@ -145,7 +146,7 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
         "AND p.paymentDate BETWEEN :startDate AND :endDate " +
         "GROUP BY DATE(p.paymentDate) " +
         "ORDER BY DATE(p.paymentDate) DESC")
-    List<Object[]> findDailyPaymentSummary(
+    List<DailyPaymentSummary> findDailyPaymentSummary(
         @Param("merchantId") String merchantId,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate
